@@ -1,0 +1,12 @@
+{
+  "name": "example/courier-schedule",
+  "description": "Приложение для расписания поездок курьеров в регионы",
+  "require": {
+    "php": ">=8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  }
+}
