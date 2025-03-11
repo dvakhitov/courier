@@ -8,3 +8,4 @@
    docker compose exec php composer install
    ```
    
+Приложение доступно по адресу http://lcoalhost:8080
