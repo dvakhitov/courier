@@ -1,55 +1,81 @@
--- Очистка таблиц (если необходимо)
-TRUNCATE TABLE trips;
-TRUNCATE TABLE couriers;
-TRUNCATE TABLE regions;
+-- Очистка таблиц с сбросом идентификаторов
+TRUNCATE TABLE trips RESTART IDENTITY CASCADE;
+TRUNCATE TABLE couriers RESTART IDENTITY CASCADE;
+TRUNCATE TABLE regions RESTART IDENTITY CASCADE;
 
--- Курьеры (не менее 10 человек)
-INSERT INTO couriers (full_name) VALUES
-                                     ('Иванов Иван Иванович'),
-                                     ('Петров Петр Петрович'),
-                                     ('Сидоров Сидор Сидорович'),
-                                     ('Козлов Алексей Алексеевич'),
-                                     ('Морозова Ольга Петровна'),
-                                     ('Смирнова Елена Сергеевна'),
-                                     ('Волков Дмитрий Николаевич'),
-                                     ('Новикова Анна Владимировна'),
-                                     ('Фёдоров Михаил Фёдорович'),
-                                     ('Егорова Наталья Александровна');
+-- Курьеры (10 человек)
+INSERT INTO couriers (full_name)
+VALUES ('Иванов Иван Иванович'),
+       ('Петров Петр Петрович'),
+       ('Сидоров Сидор Сидорович'),
+       ('Козлов Алексей Алексеевич'),
+       ('Морозова Ольга Петровна'),
+       ('Смирнова Елена Сергеевна'),
+       ('Волков Дмитрий Николаевич'),
+       ('Новикова Анна Владимировна'),
+       ('Фёдоров Михаил Фёдорович'),
+       ('Егорова Наталья Александровна');
 
--- Регионы
--- В поле travel_duration указываем время в пути (в часах) при средней скорости 70 км/ч (округлено)
-INSERT INTO regions (name, travel_duration) VALUES
-                                                ('Санкт-Петербург', 10),    -- 710 км → ≈ 10 часов
-                                                ('Уфа', 26),                -- 1800 км → ≈ 26 часов
-                                                ('Нижний Новгород', 6),      -- 400 км → ≈ 6 часов
-                                                ('Владимир', 3),            -- 180 км → ≈ 3 часов
-                                                ('Кострома', 6),            -- 450 км → ≈ 6 часов
-                                                ('Екатеринбург', 30),       -- 2100 км → 30 часов
-                                                ('Ковров', 4),              -- 250 км → ≈ 4 часов
-                                                ('Воронеж', 7),             -- 520 км → ≈ 7 часов
-                                                ('Самара', 14),             -- 1000 км → ≈ 14 часов
-                                                ('Астрахань', 17);          -- 1200 км → ≈ 17 часов
+-- Регионы (travel_duration указывается в часах для полной поездки туда и обратно)
+INSERT INTO regions (name, travel_duration)
+VALUES ('Санкт-Петербург', 10),
+       ('Уфа', 26),
+       ('Нижний Новгород', 6),
+       ('Владимир', 3),
+       ('Кострома', 6),
+       ('Екатеринбург', 30),
+       ('Ковров', 4),
+       ('Воронеж', 7),
+       ('Самара', 14),
+       ('Астрахань', 17);
 
--- Расписание поездок за три месяца.
--- Время прибытия вычисляется как departure_date + travel_duration (в часах).
-INSERT INTO trips (courier_id, region_id, departure_date, arrival_date) VALUES
--- Санкт-Петербург
-(1, 1, '2025-03-01 08:00:00', '2025-03-01 18:00:00'),
--- Уфа
-(2, 2, '2025-03-05 07:00:00', '2025-03-06 09:00:00'),
--- Нижний Новгород
-(3, 3, '2025-03-10 09:00:00', '2025-03-10 15:00:00'),
--- Владимир
-(4, 4, '2025-03-15 06:30:00', '2025-03-15 09:30:00'),
--- Кострома
-(5, 5, '2025-04-01 08:00:00', '2025-04-01 14:00:00'),
--- Екатеринбург
-(6, 6, '2025-04-05 07:30:00', '2025-04-06 13:30:00'),
--- Ковров
-(7, 7, '2025-04-10 08:00:00', '2025-04-10 12:00:00'),
--- Воронеж
-(8, 8, '2025-05-01 09:30:00', '2025-05-01 16:30:00'),
--- Самара
-(9, 9, '2025-05-05 08:00:00', '2025-05-05 22:00:00'),
--- Астрахань
-(10, 10, '2025-05-10 07:00:00', '2025-05-11 00:00:00');
+-- Генерация расписания поездок для каждого курьера на три месяца, начиная с сегодняшнего дня в 08:00.
+DO $$ DECLARE
+        courier_id INTEGER;
+        depart_ts TIMESTAMP;
+        depart_epoch DOUBLE PRECISION;
+        new_depart_epoch DOUBLE PRECISION;
+        end_epoch DOUBLE PRECISION;
+        region_id INTEGER;
+        travel_hours INTEGER;
+        arrival_epoch DOUBLE PRECISION;
+BEGIN
+    -- Конечная дата – начало текущего дня + 90 дней (в секундах)
+     end_epoch := extract(epoch from date_trunc('day', now())) + (90 * 24 * 3600);
+
+FOR courier_id IN 1..10 LOOP
+    -- Начинаем с сегодняшнего дня в 08:00
+    depart_ts := date_trunc('day', now())::timestamp + '08:00:00'::time;
+    depart_epoch := extract(epoch from depart_ts);
+
+WHILE depart_epoch < end_epoch LOOP
+      -- Выбираем случайный регион (id от 1 до 10)
+      region_id := floor(random() * 10 + 1)::int;
+
+      -- Получаем travel_duration для выбранного региона (в часах)
+SELECT travel_duration
+INTO travel_hours
+FROM regions
+WHERE id = region_id;
+
+-- Рассчитываем время прибытия: departure + (travel_hours * 3600) секунд
+arrival_epoch := depart_epoch + (travel_hours * 3600);
+
+INSERT INTO trips (courier_id, region_id, departure_date, arrival_date)
+VALUES (courier_id,
+        region_id,
+        to_timestamp(depart_epoch),
+        to_timestamp(arrival_epoch));
+
+-- Следующий выезд всегда завтра в 08:00:
+IF arrival_epoch <= depart_epoch + 86400 THEN
+        new_depart_epoch := depart_epoch + 86400;  -- завтра в 08:00
+ELSE
+        new_depart_epoch := extract(epoch from date_trunc('day', to_timestamp(arrival_epoch))) + (8 * 3600) + 86400;
+END IF;
+
+depart_epoch := new_depart_epoch;
+END LOOP;
+END LOOP;
+END$$;
+

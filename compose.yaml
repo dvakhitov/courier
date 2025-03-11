@@ -11,25 +11,29 @@ services:
 
   php:
     build: ./docker/php
+    env_file:
+      - ./app/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-courier}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-courierpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-courierdb}
     volumes:
       - ./app:/var/www/html
       - ./docker/postgresql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
       - ./docker/postgresql/seed.sql:/docker-entrypoint-initdb.d/seed.sql
     expose:
       - "9000"
-    environment:
-      POSTGRES_USER: courier
-      POSTGRES_PASSWORD: courierpassword
-      POSTGRES_DB: courierdb
     depends_on:
       - db
 
   db:
     image: postgres:17.0-alpine
+    env_file:
+      - ./app/.env
     environment:
-      POSTGRES_USER: courier
-      POSTGRES_PASSWORD: courierpassword
-      POSTGRES_DB: courierdb
+      POSTGRES_USER: ${POSTGRES_USER:-courier}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:-courierpassword}
+      POSTGRES_DB:  ${POSTGRES_DB:-courierdb}
     volumes:
       - dbdata:/var/lib/postgresql/data
     ports:

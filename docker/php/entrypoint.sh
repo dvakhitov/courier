@@ -1,25 +1,31 @@
 #!/bin/bash
 set -e
 
+# Установка зависимостей через Composer
+echo "Установка зависимостей через Composer..."
+composer install
+
 echo "Ожидание подключения к PostgreSQL..."
 
-# Ожидаем, пока PostgreSQL (на хосте "db") не станет готовым
+# Экспортируем переменную для psql
+export PGPASSWORD="$POSTGRES_PASSWORD"
+
+# Ожидание подключения к PostgreSQL (хост: db, порт: 5432)
 until pg_isready -h db -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" &>/dev/null; do
   echo "PostgreSQL не готов, ждем 2 секунды..."
   sleep 2
 done
 
 echo "PostgreSQL готов. Запуск PHP-FPM..."
-
 echo "POSTGRES_USER=$POSTGRES_USER"
 echo "POSTGRES_DB=$POSTGRES_DB"
 
-# Функция проверки таблицы: теперь указываем хост "db"
+# Функция проверки таблицы
 check_table() {
   local table_name="$1"
   local expected_cols="$2"
   local actual_cols
-  actual_cols=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h db -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c \
+  actual_cols=$(psql -h db -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c \
     "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '$table_name';" | xargs)
   if [ -z "$actual_cols" ] || [ "$actual_cols" -ne "$expected_cols" ]; then
     echo "Таблица '$table_name' отсутствует или схема не соответствует (найдено $actual_cols колонок, ожидалось $expected_cols)."
@@ -51,14 +57,14 @@ if [ "$need_init" = true ]; then
 
     if [ -f "$SCHEMA_FILE" ]; then
       echo "Импорт схемы из $SCHEMA_FILE..."
-      PGPASSWORD=$POSTGRES_PASSWORD psql -h db -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$SCHEMA_FILE"
+      psql -h db -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$SCHEMA_FILE"
     else
       echo "Файл схемы $SCHEMA_FILE не найден!"
     fi
 
     if [ -f "$SEED_FILE" ]; then
       echo "Импорт начальных данных из $SEED_FILE..."
-      PGPASSWORD=$POSTGRES_PASSWORD psql -h db -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$SEED_FILE"
+      psql -h db -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$SEED_FILE"
     else
       echo "Файл с начальными данными $SEED_FILE не найден!"
     fi
