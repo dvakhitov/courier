@@ -27,10 +27,3 @@ switch ($action) {
         $controller->scheduleForm();
         break;
 }
-
-function dump($value): void
-{
-    echo '<pre>';
-    print_r($value);
-    echo '</pre>';
-}
